@@ -11,10 +11,13 @@ local READY = "ready"
 local RUNNING = "running"
 local FAILED = "failed"
 
-Action = Class({init = function(self, task)
-    self.task = task
-    self.completed = false
-end})
+-- 执行节点（Action）：叶节点，执行设定的动作，一般返回TRUE。
+Action = Class({
+    init = function(self, task)
+        self.task = task
+        self.completed = false
+    end
+})
 
 function Action:update(creatureAI)
     if self.completed then return READY end
@@ -22,20 +25,27 @@ function Action:update(creatureAI)
     return RUNNING
 end
 
-Condition = Class({init = function(self, condition)
-    self.condition = condition
-end})
+-- 条件节点（Condition）：叶节点，执行条件判断，返回判断结果。
+Condition = Class({
+    init = function(self, condition)
+        self.condition = condition
+    end
+})
 
 function Condition:update(creatureAI)
     return self.condition(creatureAI) and READY or FAILED
 end
 
-Selector = Class({init = function(self, children)
-    self.children = children
-end})
+-- 选择节点（Selector）：组合节点，顺序执行子节点，只要碰到一个子节点返回TRUE，则返回TRUE；否则返回FALSE。
+Selector = Class({
+    init = function(self, children)
+        self.children = children
+    end
+})
 
+-- creatureAI -> self
 function Selector:update(creatureAI)
-    for i,v in ipairs(self.children) do
+    for _, v in ipairs(self.children) do
         local status = v:update(creatureAI)
         if status == RUNNING then
             return RUNNING
@@ -44,22 +54,27 @@ function Selector:update(creatureAI)
                 self:resetChildren()
                 return READY
             end
+--        elseif status == FAILED then
+--            print("failed")
         end
     end
-    return READY
+    return FAILED
 end
 
 function Selector:resetChildren()
-    for ii,vv in ipairs(self.children) do
+    for _, vv in ipairs(self.children) do
         vv.completed = false
     end
 end
 
-Sequence = Class({init = function(self, children)
-    self.children = children
-    self.last = nil
-    self.completed = false
-end})
+-- 顺序节点（Sequence）：组合节点，顺序执行子节点，只要碰到一个子节点返回FALSE，则返回FALSE；否则返回TRUE。
+Sequence = Class({
+    init = function(self, children)
+        self.children = children
+        self.last = nil
+        self.completed = false
+    end
+})
 
 function Sequence:update(creatureAI)
     if self.completed then return READY end
@@ -88,11 +103,10 @@ function Sequence:update(creatureAI)
             end
         end
     end
-
 end
 
 function Sequence:resetChildren()
-    for ii,vv in ipairs(self.children) do
+    for _, vv in ipairs(self.children) do
         vv.completed = false
     end
 end
@@ -105,7 +119,6 @@ local FALSE = function() return false end
 
 local isThiefNearTreasure = Condition(FALSE)
 local stillStrongEnoughToCarryTreasure = Condition(TRUE)
-local updated = false
 
 
 local makeThiefFlee = Action(function() print("making the thief flee") return false end)
@@ -121,38 +134,36 @@ local postPicturesOfTreasureOnFacebook = Action(function()
 end)
 
 -- testing subtree
-local packStuffAndGoHome = Selector{
-    Sequence{
+local packStuffAndGoHome = Selector {
+    Sequence {
         stillStrongEnoughToCarryTreasure,
         takeGold,
-
     },
-    Sequence{
+    Sequence {
         flyHome,
         putTreasureAway,
     }
 }
 
-local simpleBehaviour = Selector{
-                            Sequence{
-                                isThiefNearTreasure,
-                                makeThiefFlee,
-                            },
-                            Sequence{
-                                chooseCastle,
-                                flyToCastle,
-                                fightAndEatGuards,
-                                packStuffAndGoHome
-
-                            },
-                            Sequence{
-                                postPicturesOfTreasureOnFacebook
-                            }
-                        }
+local simpleBehaviour = Selector {
+    Sequence {
+        isThiefNearTreasure,
+        makeThiefFlee,
+    },
+    Sequence {
+        chooseCastle,
+        flyToCastle,
+        fightAndEatGuards,
+        packStuffAndGoHome
+    },
+    Sequence {
+        postPicturesOfTreasureOnFacebook
+    }
+}
 
 
 function exampleLoop()
-    for i=1,10 do
+    for _ = 1, 10 do
         simpleBehaviour:update()
     end
 end
