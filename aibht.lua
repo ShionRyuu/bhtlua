@@ -52,10 +52,8 @@ function Selector:update(creatureAI)
         elseif status == READY then
             if i == #self.children then
                 self:resetChildren()
-                return READY
             end
---        elseif status == FAILED then
---            print("failed")
+            return READY
         end
     end
     return FAILED
@@ -87,20 +85,16 @@ function Sequence:update(creatureAI)
 
     for i = last, #self.children do
         local v = self.children[i]:update(creatureAI)
-        if v == RUNNING then
-            self.last = i
-            return RUNNING
-        elseif v == FAILED then
+        self.last = i
+        if v == FAILED then
             self.last = nil
             self:resetChildren()
             return FAILED
-        elseif v == READY then
-            if i == #self.children then
-                self.last = nil
-                self:resetChildren()
-                self.completed = true
-                return READY
-            end
+        elseif i == #self.children then
+            self.last = nil
+            self:resetChildren()
+            self.completed = true
+            return v
         end
     end
 end
@@ -114,12 +108,12 @@ end
 ---------------------------------------------------------------------------
 -- Example
 
-local TRUE = function() return true end
-local FALSE = function() return false end
+local RAND_COND = function() return math.random(1, 6) > 3 end
+--local FALSE = function() return false end
+--local TRUE = function() return true end
 
-local isThiefNearTreasure = Condition(FALSE)
-local stillStrongEnoughToCarryTreasure = Condition(TRUE)
-
+local isThiefFarFromTreasure = Condition(RAND_COND)
+local stillStrongEnoughToCarryTreasure = Condition(RAND_COND)
 
 local makeThiefFlee = Action(function() print("making the thief flee") return false end)
 local chooseCastle = Action(function() print("choosing Castle") return true end)
@@ -138,32 +132,30 @@ local packStuffAndGoHome = Selector {
     Sequence {
         stillStrongEnoughToCarryTreasure,
         takeGold,
-    },
-    Sequence {
         flyHome,
         putTreasureAway,
     }
 }
 
-local simpleBehaviour = Selector {
-    Sequence {
-        isThiefNearTreasure,
-        makeThiefFlee,
+local simpleBehaviour = Sequence {
+    Selector {
+        Sequence {
+            isThiefFarFromTreasure,
+            makeThiefFlee,
+        },
+        Sequence {
+            chooseCastle,
+            flyToCastle,
+            fightAndEatGuards,
+            packStuffAndGoHome,
+        }
     },
-    Sequence {
-        chooseCastle,
-        flyToCastle,
-        fightAndEatGuards,
-        packStuffAndGoHome
-    },
-    Sequence {
-        postPicturesOfTreasureOnFacebook
-    }
+    postPicturesOfTreasureOnFacebook,
 }
 
-
 function exampleLoop()
-    for _ = 1, 10 do
+    math.randomseed(os.time())
+    for _ = 1, 20 do
         simpleBehaviour:update()
     end
 end
